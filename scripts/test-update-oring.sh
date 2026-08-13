@@ -18,7 +18,7 @@ run_ruby() {
   then
     ruby "$@"
   else
-    brew ruby "$@"
+    brew ruby -- "$@"
   fi
 }
 
