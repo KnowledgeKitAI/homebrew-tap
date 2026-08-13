@@ -56,7 +56,9 @@ jobs:
       - name: Test atomic Oring binary updater
         env:
           TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
-        run: "$(brew --repo \"$TAP_NAME\")/scripts/test-update-oring.sh"
+        run: |
+          tap_repo="$(brew --repo "$TAP_NAME")"
+          "$tap_repo/scripts/test-update-oring.sh"
 
       - name: Audit Oring
         env:
