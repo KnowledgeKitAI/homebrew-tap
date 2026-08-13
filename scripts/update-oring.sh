@@ -31,6 +31,15 @@ trap cleanup EXIT
 
 targets=(darwin-arm64 darwin-x64 linux-arm64 linux-x64)
 
+run_ruby() {
+  if command -v ruby >/dev/null 2>&1
+  then
+    ruby "$@"
+  else
+    brew ruby "$@"
+  fi
+}
+
 verify_checksum() {
   local checksum="$1"
   if command -v shasum >/dev/null 2>&1
@@ -70,7 +79,7 @@ darwin_x64="$(awk '{print $1}' "${download_dir}/oring-v${version}-darwin-x64.tar
 linux_arm64="$(awk '{print $1}' "${download_dir}/oring-v${version}-linux-arm64.tar.gz.sha256")"
 linux_x64="$(awk '{print $1}' "${download_dir}/oring-v${version}-linux-x64.tar.gz.sha256")"
 
-ruby "${script_dir}/render-oring-formula.rb" \
+run_ruby "${script_dir}/render-oring-formula.rb" \
   "${formula_candidate}" \
   "${version}" \
   "${darwin_arm64}" \
@@ -78,7 +87,7 @@ ruby "${script_dir}/render-oring-formula.rb" \
   "${linux_arm64}" \
   "${linux_x64}"
 
-ruby -c "${formula_candidate}"
+run_ruby -c "${formula_candidate}"
 if command -v brew >/dev/null 2>&1
 then
   brew style "${formula_candidate}"

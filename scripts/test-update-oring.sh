@@ -13,6 +13,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+run_ruby() {
+  if command -v ruby >/dev/null 2>&1
+  then
+    ruby "$@"
+  else
+    brew ruby "$@"
+  fi
+}
+
 write_checksum() {
   local archive="$1"
   if command -v shasum >/dev/null 2>&1
@@ -42,7 +51,7 @@ ORING_FORMULA_PATH="${formula}" \
   ORING_RELEASE_DIR="${release_dir}" \
   "${script_dir}/update-oring.sh" "v${version}"
 
-ruby -c "${formula}"
+run_ruby -c "${formula}"
 grep -q 'version "9.8.7"' "${formula}"
 grep -q 'on_macos do' "${formula}"
 grep -q 'on_linux do' "${formula}"
