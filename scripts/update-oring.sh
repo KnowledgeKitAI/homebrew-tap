@@ -31,6 +31,16 @@ trap cleanup EXIT
 
 targets=(darwin-arm64 darwin-x64 linux-arm64 linux-x64)
 
+verify_checksum() {
+  local checksum="$1"
+  if command -v shasum >/dev/null 2>&1
+  then
+    shasum -a 256 -c "${checksum}"
+  else
+    sha256sum --check "${checksum}"
+  fi
+}
+
 for target in "${targets[@]}"
 do
   archive="oring-v${version}-${target}.tar.gz"
@@ -50,7 +60,7 @@ do
 
   (
     cd "${download_dir}"
-    shasum -a 256 -c "${checksum}"
+    verify_checksum "${checksum}"
   )
   tar -tzf "${download_dir}/${archive}" | grep -qx 'oring'
 done

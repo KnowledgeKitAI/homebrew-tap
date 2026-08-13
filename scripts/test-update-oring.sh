@@ -13,6 +13,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+write_checksum() {
+  local archive="$1"
+  if command -v shasum >/dev/null 2>&1
+  then
+    shasum -a 256 "${archive}" >"${archive}.sha256"
+  else
+    sha256sum "${archive}" >"${archive}.sha256"
+  fi
+}
+
 mkdir -p "${release_dir}"
 for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64
 do
@@ -24,7 +34,7 @@ do
   tar -czf "${release_dir}/${archive}" -C "${stage}" oring
   (
     cd "${release_dir}"
-    shasum -a 256 "${archive}" >"${archive}.sha256"
+    write_checksum "${archive}"
   )
 done
 
