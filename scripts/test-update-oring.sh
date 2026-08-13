@@ -29,7 +29,7 @@ do
 done
 
 ORING_FORMULA_PATH="${formula}" \
-ORING_RELEASE_DIR="${release_dir}" \
+  ORING_RELEASE_DIR="${release_dir}" \
   "${script_dir}/update-oring.sh" "v${version}"
 
 ruby -c "${formula}"
