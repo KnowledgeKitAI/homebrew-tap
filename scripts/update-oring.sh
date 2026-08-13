@@ -9,44 +9,116 @@ then
 fi
 
 version="${1#v}"
-if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 then
-  echo "Invalid semantic version: $1" >&2
+  echo "Invalid stable semantic version: $1" >&2
   exit 2
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(cd "${script_dir}/.." && pwd)"
-formula="${repo_dir}/Formula/oring.rb"
-tarball_url="https://registry.npmjs.org/@knowledgekit/oring/-/oring-${version}.tgz"
+formula="${ORING_FORMULA_PATH:-${repo_dir}/Formula/oring.rb}"
+release_base_url="${ORING_RELEASE_BASE_URL:-https://github.com/KnowledgeKitAI/oring/releases/download/v${version}}"
+release_dir="${ORING_RELEASE_DIR:-}"
 download_dir="$(mktemp -d)"
+formula_candidate="$(mktemp)"
 
 cleanup() {
   rm -rf "${download_dir}"
+  rm -f "${formula_candidate}"
 }
 trap cleanup EXIT
 
-echo "Downloading @knowledgekit/oring@${version}..."
-curl --fail --location --silent --show-error "${tarball_url}" \
-  --output "${download_dir}/oring.tgz"
-sha256="$(shasum -a 256 "${download_dir}/oring.tgz" | awk '{print $1}')"
+targets=(darwin-arm64 darwin-x64 linux-arm64 linux-x64)
 
-ruby - "${formula}" "${tarball_url}" "${sha256}" <<'RUBY'
-formula, url, sha256 = ARGV
-content = File.read(formula)
+for target in "${targets[@]}"
+do
+  archive="oring-v${version}-${target}.tar.gz"
+  checksum="${archive}.sha256"
+  if [[ -n "${release_dir}" ]]
+  then
+    cp "${release_dir}/${archive}" "${download_dir}/${archive}"
+    cp "${release_dir}/${checksum}" "${download_dir}/${checksum}"
+  else
+    curl --fail --location --silent --show-error \
+      "${release_base_url}/${archive}" \
+      --output "${download_dir}/${archive}"
+    curl --fail --location --silent --show-error \
+      "${release_base_url}/${checksum}" \
+      --output "${download_dir}/${checksum}"
+  fi
 
-unless content.sub!(%r{  url "https://registry\.npmjs\.org/@knowledgekit/oring/-/oring-[^"]+\.tgz"}, "  url \"#{url}\"")
-  abort "Could not find the Oring npm tarball URL in #{formula}"
-end
+  (
+    cd "${download_dir}"
+    shasum -a 256 -c "${checksum}"
+  )
+  tar -tzf "${download_dir}/${archive}" | grep -qx 'oring'
+done
 
-unless content.sub!(/  sha256 "[0-9a-f]{64}"/, "  sha256 \"#{sha256}\"")
-  abort "Could not find the SHA-256 checksum in #{formula}"
-end
+checksum_for() {
+  local target="$1"
+  awk '{print $1}' "${download_dir}/oring-v${version}-${target}.tar.gz.sha256"
+}
 
-File.write(formula, content)
+ruby - "${formula_candidate}" "${version}" \
+  "$(checksum_for darwin-arm64)" \
+  "$(checksum_for darwin-x64)" \
+  "$(checksum_for linux-arm64)" \
+  "$(checksum_for linux-x64)" <<'RUBY'
+path, version, darwin_arm64, darwin_x64, linux_arm64, linux_x64 = ARGV
+release = "https://github.com/KnowledgeKitAI/oring/releases/download/v#{version}"
+
+content = <<~FORMULA
+  class Oring < Formula
+    desc "Agentic development toolkit for specs, sessions, and Git workflows"
+    homepage "https://github.com/KnowledgeKitAI/oring"
+    version "#{version}"
+    license "MIT"
+
+    on_macos do
+      if Hardware::CPU.arm?
+        url "#{release}/oring-v#{version}-darwin-arm64.tar.gz"
+        sha256 "#{darwin_arm64}"
+      else
+        url "#{release}/oring-v#{version}-darwin-x64.tar.gz"
+        sha256 "#{darwin_x64}"
+      end
+    end
+
+    on_linux do
+      if Hardware::CPU.arm?
+        url "#{release}/oring-v#{version}-linux-arm64.tar.gz"
+        sha256 "#{linux_arm64}"
+      else
+        url "#{release}/oring-v#{version}-linux-x64.tar.gz"
+        sha256 "#{linux_x64}"
+      end
+    end
+
+    def install
+      bin.install "oring"
+    end
+
+    test do
+      assert_match version.to_s, shell_output("\#{bin}/oring --version")
+      assert_match "Agentic development toolkit", shell_output("\#{bin}/oring --help")
+      assert_match '"sessions"', shell_output("\#{bin}/oring tui --demo --json")
+    end
+  end
+FORMULA
+
+File.write(path, content)
 RUBY
 
-brew style "${formula}"
+ruby -c "${formula_candidate}"
+if command -v brew >/dev/null 2>&1
+then
+  brew style "${formula_candidate}"
+fi
 
-echo "Updated Formula/oring.rb to ${version} (${sha256})."
-echo "Review the diff, then open a pull request; GitHub Actions will run the full audit."
+mkdir -p "$(dirname "${formula}")"
+mv "${formula_candidate}" "${formula}"
+
+echo "Updated ${formula} to standalone Oring ${version}."
+echo "Review the diff and let pull-request CI audit all four host targets."
+echo "This script does not commit, push, merge, tag, or publish anything."

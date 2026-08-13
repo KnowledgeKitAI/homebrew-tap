@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.npmrc
+
+# Local release/update staging
+.artifacts/
+.release/
+artifacts/
+release/
+
+# Credentials and signing material
+*.key
+*.pem
+*.p12

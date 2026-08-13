@@ -17,9 +17,13 @@ jobs:
   test-bot:
     strategy:
       matrix:
-        os: [macos-26]
+        os: [macos-15, macos-15-intel]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
+            container:
+              image: ghcr.io/homebrew/brew:main
+              options: --privileged
+          - os: ubuntu-24.04-arm
             container:
               image: ghcr.io/homebrew/brew:main
               options: --privileged
@@ -47,6 +51,9 @@ jobs:
       - run: brew test-bot --only-cleanup-before
       - run: brew test-bot --only-setup
       - run: brew test-bot --only-tap-syntax
+
+      - name: Test atomic Oring binary updater
+        run: scripts/test-update-oring.sh
 
       - name: Audit Oring
         env:

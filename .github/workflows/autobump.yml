@@ -1,13 +1,7 @@
-name: brew bump
+name: legacy npm formula bump
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/autobump.yml
-  schedule:
-    - cron: "15 9 * * *"
+  workflow_dispatch:
 
 permissions: {}
 
