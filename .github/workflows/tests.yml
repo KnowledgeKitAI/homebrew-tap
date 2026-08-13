@@ -54,7 +54,9 @@ jobs:
       - run: brew test-bot --only-tap-syntax
 
       - name: Test atomic Oring binary updater
-        run: scripts/test-update-oring.sh
+        env:
+          TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
+        run: "$(brew --repo \"$TAP_NAME\")/scripts/test-update-oring.sh"
 
       - name: Audit Oring
         env:
